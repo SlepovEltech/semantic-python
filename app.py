@@ -8,7 +8,8 @@ import csv
 
 #NLP section
 import nltk
-from nltk.corpus import stopwords
+#from nltk.corpus import stopwords
+nltk.download('stopwords')
 import pymorphy2
 
 #Wikidata section
