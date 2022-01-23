@@ -7,12 +7,12 @@ import sys
 import csv
 
 #NLP section
-import nltk
+#import nltk
 #from nltk.corpus import stopwords
 nltk.download('stopwords')
 import pymorphy2
 
-#Wikidata section
+#Wikidata sections
 from SPARQLWrapper import SPARQLWrapper, JSON
 from wikidata.client import Client
 
