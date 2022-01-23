@@ -9,7 +9,6 @@ import csv
 #NLP section
 #import nltk
 #from nltk.corpus import stopwords
-nltk.download('stopwords')
 import pymorphy2
 
 #Wikidata sections
@@ -17,7 +16,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from wikidata.client import Client
 
 
-from dictionary import entity_dict, predicate_dict
+from dictionary import entity_dict, predicate_dict, stopwords
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -26,7 +25,7 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 endpoint_url = "https://query.wikidata.org/sparql"
 
 #Для стоп-слов используем структуру данных set, так как она работает быстрее list
-stops = set(stopwords.words("russian")) 
+stops = set(stopwords) 
 
 def lemmatize(words):
       res = []
