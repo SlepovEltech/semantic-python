@@ -15,9 +15,10 @@ import pymorphy2
 from SPARQLWrapper import SPARQLWrapper, JSON
 from wikidata.client import Client
 
-
-from dictionary import entity_dict, predicate_dict, stopwords
-
+from entity_dictionary import entity_dict 
+from predicate_dictionary import predicate_dict
+from stopwords_dictionary import stopwords
+ 
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -69,7 +70,7 @@ def get_norm_tokens(query):
     return words
 
 @app.route('/')
-def index():
+def nl_query():
     nl_query = request.args.get('query')
 
     key_words = get_norm_tokens(nl_query)
@@ -89,6 +90,19 @@ def index():
         response.append(result)
 
     return jsonify(response)
+
+@app.route('/', methods=['POST'])
+def query_from_constructur():
+    print(request.json)
+    # query = {
+    #     'select': tasks[-1]['id'] + 1,
+    #     'title': request.json['title'],
+    #     'description': request.json.get('description', ""),
+    #     'done': False
+    # }
+    # tasks.append(task)
+    # return jsonify({'task': task}), 201
+    return "Hello"
 
 if __name__ == '__main__':
     app.run(debug=True)
