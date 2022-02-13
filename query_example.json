@@ -1,0 +1,19 @@
+{
+    "select_section":{
+        "field_1" : "city", 
+        "field_2" : "mayor"
+    },
+
+    "body_section":{
+        "triple_1":{
+            "subject" : "Россия",
+            "predicate" : "Столица",
+            "object" : "city"
+        },
+        "triple_2":{
+            "subject" : "city",
+            "predicate" : "мэр",
+            "object" : "mayor"
+        }
+    }
+}

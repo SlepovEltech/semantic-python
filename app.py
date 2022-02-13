@@ -6,9 +6,6 @@ import re
 import sys
 import csv
 
-#NLP section
-#import nltk
-#from nltk.corpus import stopwords
 import pymorphy2
 
 #Wikidata sections
@@ -43,7 +40,7 @@ def get_results(endpoint_url, query):
     sparql.setReturnFormat(JSON)
     return sparql.query().convert()
 
-def construct_sparql(obj, predicate):
+def construct_sparql_from_nl(obj, predicate):
     return   """SELECT ?item ?item_label ?item_description ?pic
                 WHERE
                 {
@@ -56,6 +53,45 @@ def construct_sparql(obj, predicate):
                   #FILTER((lang(?item_description) = "en") || (lang(?item_description) = "ru") )
                 }
                 """
+select_dict = []
+def construct_select_section(select_json):
+    result = ""
+    select_dict.clear()
+    for key in select_json:
+        select_dict.append(select_json[key].lower())
+        result += "?"+select_json[key].lower()+" "
+    #print(result)
+    #print(select_dict)
+    return result
+
+def construct_body_section(body_json):
+    result = ""
+    for triple_key in body_json:
+        triple = body_json[triple_key]
+
+        subject = triple["subject"].lower()
+        predicate = triple["predicate"].lower()
+        obj = triple["object"].lower()
+
+        if subject in select_dict:
+            subject = "?"+subject
+        if predicate in select_dict:
+            predicate = "?"+predicate
+        if obj in select_dict:
+            obj = "?"+obj
+
+        if subject in entity_dict:
+            subject = "wd:"+entity_dict[subject] 
+        if predicate in predicate_dict:
+            predicate = "wdt:"+predicate_dict[predicate]
+        if obj in entity_dict:
+            obj = "wd:"+entity_dict[obj] 
+        result += subject + " " + predicate + " " + obj + ".\n"
+    return result
+
+def construct_sparql_manual(select_section, body_section):
+    return   """SELECT """ + select_section + """ WHERE{ """+body_section+"""}"""
+
 def get_norm_tokens(query):
     #Оставляем в запросе только буквы       
     letters_only = re.sub("[^а-яА-яa-zA-z]", " ", query) 
@@ -68,6 +104,40 @@ def get_norm_tokens(query):
     #приводим к начальной форме
     words = lemmatize(words)
     return words
+
+def extract_results_from_response(sparql_query:str):
+    results = get_results(endpoint_url, sparql_query)
+    response = []
+    for result in results["results"]["bindings"]:
+        print(result)
+        response.append(result)
+    return response
+
+def find_entity_by_substring(substr:str):
+    result = []
+    for key in entity_dict.keys():
+        if(key.find(substr) != -1):
+            result.append(key)
+    return result
+
+def find_predicate_by_substring(substr:str):
+    result = []
+    for key in predicate_dict.keys():
+        if(key.find(substr) != -1):
+            result.append(key)
+    return result
+
+@app.route('/autocomplete/entity')
+def entity_autocomplete():
+    substr = str(request.args.get('substr'))
+    return jsonify(find_entity_by_substring(substr))
+
+@app.route('/autocomplete/predicate')
+def predicate_autocomplete():
+    substr = str(request.args.get('substr'))
+    substr = str(substr)
+    return jsonify(find_predicate_by_substring(substr))
+
 
 @app.route('/')
 def nl_query():
@@ -82,27 +152,19 @@ def nl_query():
       if word in entity_dict:
         obj = entity_dict[word]
 
-    sparql_query = construct_sparql(obj, predicate)
-    results = get_results(endpoint_url, sparql_query)
-    response = []
-    for result in results["results"]["bindings"]:
-        print(result)
-        response.append(result)
+    sparql_query = construct_sparql_from_nl(obj, predicate)
+
+    response = extract_results_from_response(sparql_query)
 
     return jsonify(response)
 
 @app.route('/', methods=['POST'])
 def query_from_constructur():
-    print(request.json)
-    # query = {
-    #     'select': tasks[-1]['id'] + 1,
-    #     'title': request.json['title'],
-    #     'description': request.json.get('description', ""),
-    #     'done': False
-    # }
-    # tasks.append(task)
-    # return jsonify({'task': task}), 201
-    return "Hello"
+    select_section = construct_select_section(request.json['select_section'])
+    body_section = construct_body_section(request.json['body_section'])
+    sparql_query = construct_sparql_manual(select_section, body_section)
+    response = extract_results_from_response(sparql_query)
+    return jsonify(response)
 
 if __name__ == '__main__':
     app.run(debug=True)
