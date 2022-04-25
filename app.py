@@ -14,6 +14,7 @@ from wikidata.client import Client
 
 from entity_dictionary import entity_dict 
 from predicate_dictionary import predicate_dict
+from predicate_dictionary import predicate_dict_nlp
 from stopwords_dictionary import stopwords
  
 app = Flask(__name__)
@@ -24,6 +25,76 @@ endpoint_url = "https://query.wikidata.org/sparql"
 
 #Для стоп-слов используем структуру данных set, так как она работает быстрее list
 stops = set(stopwords) 
+
+class ManualQuery:
+    def __init__(self, request):
+        self.select_section = ""
+        self.body_section = ""
+        self.select_dict = []
+        self.construct_select_section(request["select_section"])
+        self.construct_body_section(request["body_section"])
+
+
+    def construct_select_section(self, select_json):
+        self.select_section = ""
+        self.select_dict.clear()
+        for key in select_json:
+            self.select_dict.append(select_json[key].lower())
+            self.select_section += "?"+select_json[key].lower()+" "
+        #print(result)
+        #print(select_dict)
+    
+    def construct_body_section(self, body_json):
+        self.body_section = ""
+        for triple_key in body_json:
+            triple = body_json[triple_key]
+
+            subject = triple["subject"].lower()
+            predicate = triple["predicate"].lower()
+            obj = triple["object"].lower()
+
+            subject_label = ""
+            obj_label = ""
+            predicate_label = ""
+
+            if subject in self.select_dict:
+                subject = "?"+subject
+                subject_label = subject+"_label"
+                if(subject_label not in self.select_section):
+                    self.select_section += " "+subject_label
+            if predicate in self.select_dict:
+                predicate = "?"+predicate
+                predicate_label = predicate+"_label"
+                if(predicate_label not in self.select_section):
+                    self.select_section += " "+predicate_label
+            if obj in self.select_dict:
+                obj = "?"+obj
+                obj_label = obj+"_label"
+                if(obj_label not in self.select_section):
+                    self.select_section += " "+obj_label
+
+
+            if subject in entity_dict:
+                subject = "wd:"+entity_dict[subject] 
+            if predicate in predicate_dict:
+                predicate = "wdt:"+predicate_dict[predicate]
+            if obj in entity_dict:
+                obj = "wd:"+entity_dict[obj] 
+            self.body_section += subject + " " + predicate + " " + obj + ".\n"
+
+            if(subject_label != ""):
+                self.body_section += subject + " rdfs:label " + subject_label + ".\n"
+                self.body_section += "FILTER(lang("+subject_label+") = \"en\").\n"
+            if(predicate_label != ""):
+                self.body_section += predicate + " rdfs:label " + predicate_label + ".\n"
+                self.body_section += "FILTER((ang("+predicate_label+") = \"en\").\n"
+            if(obj_label != ""):
+                self.body_section += obj + " rdfs:label " + obj_label + ".\n"
+                self.body_section += "FILTER(lang("+obj_label+") = \"en\").\n"    
+    
+    def get_sparql_query(self):
+        return   """SELECT """ + self.select_section + """ WHERE{ """+self.body_section+"""}"""
+
 
 def lemmatize(words):
       res = []
@@ -73,12 +144,19 @@ def construct_body_section(body_json):
         predicate = triple["predicate"].lower()
         obj = triple["object"].lower()
 
+        subject_label = ""
+        obj_label = ""
+        predicate_label = ""
+
         if subject in select_dict:
             subject = "?"+subject
+            subject_label = subject+"_label"
         if predicate in select_dict:
             predicate = "?"+predicate
+            predicate_label = predicate+"_label"
         if obj in select_dict:
             obj = "?"+obj
+            obj_label = obj+"_label"
 
         if subject in entity_dict:
             subject = "wd:"+entity_dict[subject] 
@@ -87,6 +165,16 @@ def construct_body_section(body_json):
         if obj in entity_dict:
             obj = "wd:"+entity_dict[obj] 
         result += subject + " " + predicate + " " + obj + ".\n"
+
+        if(subject_label != ""):
+            result += subject + " rdfs:label " + subject_label + ".\n"
+            result += "FILTER(lang("+subject_label+") = \"ru\").\n"
+        if(predicate_label != ""):
+            result += predicate + " rdfs:label " + predicate_label + ".\n"
+            result += "FILTER((ang("+predicate_label+") = \"ru\").\n"
+        if(obj_label != ""):
+            result += obj + " rdfs:label " + obj_label + ".\n"
+            result += "FILTER(lang("+obj_label+") = \"ru\").\n"    
     return result
 
 def construct_sparql_manual(select_section, body_section):
@@ -147,8 +235,8 @@ def nl_query():
     obj = ""
     predicate = ""
     for word in key_words:
-      if word in predicate_dict:
-        predicate = predicate_dict[word]
+      if word in predicate_dict_nlp:
+        predicate = predicate_dict_nlp[word]
       if word in entity_dict:
         obj = entity_dict[word]
 
@@ -160,9 +248,11 @@ def nl_query():
 
 @app.route('/', methods=['POST'])
 def query_from_constructur():
-    select_section = construct_select_section(request.json['select_section'])
-    body_section = construct_body_section(request.json['body_section'])
-    sparql_query = construct_sparql_manual(select_section, body_section)
+    # select_section = construct_select_section(request.json['select_section'])
+    # body_section = construct_body_section(request.json['body_section'])
+    # sparql_query = construct_sparql_manual(select_section, body_section)
+    sparql_query = ManualQuery(request.json).get_sparql_query()
+    print(sparql_query)
     response = extract_results_from_response(sparql_query)
     return jsonify(response)
 
