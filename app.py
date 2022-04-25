@@ -59,38 +59,28 @@ class ManualQuery:
 
             if subject in self.select_dict:
                 subject = "?"+subject
-                subject_label = subject+"_label"
-                if(subject_label not in self.select_section):
-                    self.select_section += " "+subject_label
+                
             if predicate in self.select_dict:
                 predicate = "?"+predicate
-                predicate_label = predicate+"_label"
-                if(predicate_label not in self.select_section):
-                    self.select_section += " "+predicate_label
+            
             if obj in self.select_dict:
                 obj = "?"+obj
-                obj_label = obj+"_label"
-                if(obj_label not in self.select_section):
-                    self.select_section += " "+obj_label
-
-
+        
+            if predicate in predicate_dict:
+                if predicate != 'label' and predicate != 'description':
+                    predicate = "wdt:"+predicate_dict[predicate]
+                else:
+                    predicate = predicate_dict[predicate]
+                    rdfs_pred = obj
             if subject in entity_dict:
                 subject = "wd:"+entity_dict[subject] 
-            if predicate in predicate_dict:
-                predicate = "wdt:"+predicate_dict[predicate]
             if obj in entity_dict:
                 obj = "wd:"+entity_dict[obj] 
             self.body_section += subject + " " + predicate + " " + obj + ".\n"
-
-            if(subject_label != ""):
-                self.body_section += subject + " rdfs:label " + subject_label + ".\n"
-                self.body_section += "FILTER(lang("+subject_label+") = \"en\").\n"
-            if(predicate_label != ""):
-                self.body_section += predicate + " rdfs:label " + predicate_label + ".\n"
-                self.body_section += "FILTER((ang("+predicate_label+") = \"en\").\n"
-            if(obj_label != ""):
-                self.body_section += obj + " rdfs:label " + obj_label + ".\n"
-                self.body_section += "FILTER(lang("+obj_label+") = \"en\").\n"    
+            
+            if(('rdfs' in predicate) or ('schema' in predicate)):
+                self.body_section += "FILTER(lang("+rdfs_pred+") = \"en\").\n"
+           
     
     def get_sparql_query(self):
         return   """SELECT """ + self.select_section + """ WHERE{ """+self.body_section+"""}"""
