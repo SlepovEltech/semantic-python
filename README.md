@@ -1,2 +1,3 @@
 # semantic-backend
-# semantic-python
+
+Локальный запуск: python3 app.py
